@@ -1,0 +1,250 @@
+#! /bin/bash
+# eval_pa5 - grades PA5 performance and specification
+#
+
+EXITCODE=0
+SOURCES="chess.py"
+COMMENTS="author date file"
+CHECKS="while elif"
+METHODS="dictionary string"
+CLASSES="King Queen Knight Rook Bishop"
+METHODSBOARD="draw"
+METHODSCLASSES="moves"
+DATA="ex1 ex2"
+MAIN=python3
+REPORT=grade
+GRADE=0
+
+echo "
+Programming Assignment 5
+**********************************
+Specification :" > $REPORT
+
+#
+# checks files by filenames
+#
+for f in $SOURCES
+do 
+    if [ -e $f -a -s $f ]
+    then
+        echo "$f is present +3/3 points" >> $REPORT
+        ((GRADE = GRADE + 3))
+    else
+    echo "$f is named incorrectly or absent +0/3 points" >> $REPORT
+        
+    fi
+
+#
+# checks comment blocks
+#
+    for c in $COMMENTS
+    do
+        grep -i "#.*\b$c" $f > comments
+        if [ -e comments -a $(wc -l < comments) -eq 0 ]
+        then
+            echo "$f does not have a comment $c +0/1 points" >> $REPORT
+        else
+            echo "$f has a comment $c +1/1 points" >> $REPORT
+            ((GRADE = GRADE + 1))
+        fi
+    done
+
+#
+# checks each loop and coditional is present and followed by a :  
+#
+
+echo "
+**********************************
+Loops and Conditionals :" >> $REPORT
+
+    for k in $CHECKS
+    do
+        grep -i "\b$k\b.*:" $f > checks
+        if [ -e checks -a $(wc -l < checks) -eq 0 ]
+        then
+            echo "$f does not have a $k +0/1 points" >> $REPORT
+        else          
+            echo "$f has $k +1/1 points" >> $REPORT
+            ((GRADE = GRADE + 1))
+        fi
+    done
+done
+
+#
+# checks dictionary, string methods 
+#
+
+echo "
+**********************************
+Dictionary and String Methods :" >> $REPORT
+for k in $METHODS
+do
+    if [ $k == "dictionary" ]
+    then
+        grep -i ".+\[.*\]\|\{.*\}" $f > methods
+        if [ -e methods -a $(wc -l < methods) -eq 0 ]
+        then
+            echo "No dictionary method(s) used +0/1 points" >> $REPORT 
+        else
+            echo "Dictionary method(s) present +1/1 points" >> $REPORT
+            ((GRADE = GRADE + 1))
+        fi
+
+    elif [ $k == "string" ]
+    then
+        grep -i ".join\|.upper\|.lower\|.isalpha" $f > methods
+        if [ -e methods -a $(wc -l < methods) -eq 0 ]
+        then
+            echo "No string method(s) used +0/1 points" >> $REPORT 
+        else
+            echo "String method(s) present +1/1 points" >> $REPORT
+            ((GRADE = GRADE + 1))
+        fi 
+    fi       
+done
+
+#
+# checks board for class and methods 
+#
+
+echo "
+**********************************
+Board class and methods :" >> $REPORT
+COUNTER=0
+
+grep -i "class Board" $f > class
+if [ -e class -a $(wc -l < class) -eq 0 ]
+then
+    echo "missing or incorrectly named class Board +0/2 points" >> $REPORT
+else
+    echo "class Board present +2/2 points" >> $REPORT
+    ((GRADE = GRADE + 2))
+fi
+
+
+for k in $METHODSBOARD
+do
+    grep -i "def *$k" $f > methods
+    if [ -e methods -a $(wc -l < methods) -eq 0 ]
+    then
+        echo "class Board does not have the method $k" +0/4 >> $REPORT
+    else
+        echo "class Board has the method $k"  +4/4>> $REPORT
+        ((GRADE = GRADE + 4))
+    fi
+done
+
+#
+# checks chess classes and methods 
+#
+
+echo "
+**********************************
+Chess piece classes and methods :" >> $REPORT
+for c in $CLASSES
+do
+    grep -i "class $c" $f > class
+    if [ -e class -a $(wc -l < class) -eq 0 ]
+    then
+        echo "missing or incorrectly named class $c +0/2 points" >> $REPORT
+    else
+        echo "class $c present +2/2 points" >> $REPORT
+        ((GRADE = GRADE + 2))
+    fi
+done
+
+for k in $METHODSCLASSES
+do
+    sed -n '/def moves[ (]/p' $f > methods
+    if [ -e methods -a $(wc -l < methods) -eq 0 ]
+    then
+        echo "no methods $k +0/10" >> $REPORT
+    else
+        COUNTER=$(wc -l < methods)
+        ((COUNTER = COUNTER * 2))
+        if [ $COUNTER -gt 10 ]
+        then
+            COUNTER=10
+        fi
+        echo "there are methods $k $COUNTER/10" >> $REPORT
+        ((GRADE = GRADE + COUNTER))
+    fi
+done
+
+echo "
+**********************************
+Performance :" >> $REPORT
+
+#
+# checks main application
+#
+if [ -e $SOURCES ]
+then
+
+#
+# checks output
+#   
+    for e in $DATA
+    do
+        $MAIN $SOURCES < $e > output 2> errors_$e &
+    PID=$!
+    sleep 2
+    kill -KILL $PID 2> /dev/null
+    echo >> $REPORT
+    echo "for input file $e:" >> $REPORT
+        if [ -e output -a $(wc -l < errors_$e) -eq 0 ]
+        then
+            if [ "$e" == "ex1" ]
+            then
+                echo "$SOURCES runs without errors for simple input +6/6 points" >> $REPORT
+                ((GRADE = GRADE + 6))
+            else
+                echo "$SOURCES runs without errors for advanced input +6/6 points" >> $REPORT
+                ((GRADE = GRADE + 6))
+            fi
+        else
+            if [ "$e" == "ex1" ]
+            then
+                echo "$SOURCES does not run correctly for simple input +0/6 points" >> $REPORT
+                echo "      - errors can be seen in file errors_ex1" >> $REPORT
+            else
+                echo "$SOURCES does not run correctly for advanced input +0/6 points" >> $REPORT
+                echo "      - errors can be seen in file errors_ex2" >> $REPORT
+            fi
+        fi
+
+        diff -wB $e.out output >& dif_$e
+        if [ -e output -a $(wc -l < dif_$e) -eq 0 ]
+        then
+            echo "output is correct +6/6 points" >> $REPORT
+            ((GRADE = GRADE + 6))
+        else
+            echo "output is incorrect +0/6 points" >> $REPORT
+            if [ "$e" == "ex1" ]
+            then
+                echo "      - differences can be seen in file dif_ex1" >> $REPORT
+            else
+                echo "      - differences can be seen in file dif_ex2" >> $REPORT
+            fi
+        fi
+ 
+    done
+else
+    echo "$SOURCES not implemented +0 points" >> $REPORT
+fi
+
+#
+# prints grade
+# 
+                echo "
+**********************************
+Your grade is $GRADE out of 60 
+
+        
+" >> $REPORT
+
+cat $REPORT
+#echo $GRADE > tmp
+rm output comments checks methods class
+    
+exit $EXITCODE
